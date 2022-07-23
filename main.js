@@ -192,9 +192,11 @@ async function measureImgElements() {
 			img.parentElement?.tagName?.toLowerCase() !== 'PICTURE'
 	)
 	for (const img of filteredImages) {
+		// if (window.imagesCompleted.has(img)) continue
+
 		img.loading = 'eager'
 		img.crossOrigin = 'anonymous'
-		if (img.naturalWidth) {
+		if (img.naturalWidth && img.complete) {
 			await processImg(img)
 		} else {
 			await processImgOnLoad(img)
