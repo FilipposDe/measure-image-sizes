@@ -117,6 +117,21 @@ async function getSrcSize(src) {
 }
 
 /**
+ * Gets the intristic width and height of the `src` image
+ * @param {String} src
+ * @param {Number} width image width
+ * @param {height} src image height
+ * @returns {{width: Number, height: Number}}
+ */
+async function getSrcDimensions(src, width, height) {
+	const image = await loadImage(src, width, height)
+	return {
+		width: image.naturalWidth,
+		height: image.naturalHeight,
+	}
+}
+
+/**
  * Processes an image by measuring it and adding a label to it.
  * @param {HTMLElement} img the image to process
  */
@@ -125,7 +140,20 @@ async function processImg(img) {
 	const canvas = createCanvas(img.width, img.height)
 	canvas.getContext('2d').drawImage(img, 0, 0, img.width, img.height)
 	const size = await getSrcSize(img.currentSrc)
-	const text = `${img.naturalWidth} x ${img.naturalHeight} (${size} kb)`
+	let width, height
+	if (img.srcset) {
+		const dimensions = await getSrcDimensions(
+			img.currentSrc,
+			img.width,
+			img.height
+		)
+		width = dimensions.width
+		height = dimensions.height
+	} else {
+		width = img.naturalWidth
+		height = img.naturalHeight
+	}
+	const text = `${width} x ${height} (${size} kb)`
 	addTextBgToCanvas(canvas)
 	addTextToCanvas(canvas, text)
 	replaceImgCanvas(img, canvas)
@@ -139,9 +167,9 @@ async function processImg(img) {
  * @returns {Promise<undefined>}
  */
 function processImgOnLoad(img) {
-	if (window.imagesCompleted.has(img)) return
 	return new Promise((resolve) => {
 		img.addEventListener('load', () => {
+			if (window.imagesCompleted.has(img)) return
 			processImg(img).then(() => {
 				window.imagesCompleted.add(img)
 				return resolve()
@@ -152,15 +180,15 @@ function processImgOnLoad(img) {
 
 /**
  * Measures and processes all img elements on the page.
- * Valid images are (removed: at least 200 x 200 and) not
+ * Valid images are at least 50 x 50 and not
  * belonging to a `<picture>` element.
  */
 async function measureImgElements() {
 	const allImages = document.querySelectorAll('img')
 	const filteredImages = Array.from(allImages).filter(
 		(img) =>
-			// img.naturalWidth > 200 &&
-			// img.naturalHeight > 200 &&
+			img.naturalWidth > 50 &&
+			img.naturalHeight > 50 &&
 			img.parentElement?.tagName?.toLowerCase() !== 'PICTURE'
 	)
 	for (const img of filteredImages) {
@@ -201,13 +229,19 @@ async function measurePictureElements() {
 /**
  * Creates an Image from an src
  * @param {String} src the src of the image
+ * @param {Number | null} width optional width
+ * @param {height | null} src optional height
  * @returns {Promise<Image>} the image
  */
-const loadImage = (src) =>
+const loadImage = (src, width, height) =>
 	new Promise((resolve, reject) => {
 		const image = new Image()
 		image.onload = () => {
 			resolve(image)
+		}
+		if (width && height) {
+			image.width = width
+			image.height = height
 		}
 		image.src = src
 	})
@@ -265,7 +299,9 @@ async function measureBgElements() {
 	}
 }
 
-measureAllImages()
+if (!window.noAutoRun) {
+	measureAllImages()
+}
 async function measureAllImages() {
 	const interval = log('Measuring', true)
 	await measureImgElements()

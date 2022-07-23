@@ -49,13 +49,30 @@
 		<div>
 			<h2>img element</h2>
 			<img
-				src="https://images.unsplash.com/photo-1658194171243-10f8f502b775?crop=entropy&cs=tinysrgb&fit=crop&fm=jpg&h=300&ixid=MnwxfDB8MXxyYW5kb218MHx8fHx8fHx8MTY1ODU4MDUxOQ&ixlib=rb-1.2.1&q=80&w=300"
+				class="feature-row__image lazyautosizes lazyloaded"
+				data-widths="[180, 360, 540, 720, 900, 1080]"
+				data-aspectratio="1.0"
+				data-sizes="auto"
+				alt=""
+				data-srcset="//cdn.shopify.com/s/files/1/0565/4138/0791/files/storm-snow_180x.jpg?v=1619177881 180w, //cdn.shopify.com/s/files/1/0565/4138/0791/files/storm-snow_360x.jpg?v=1619177881 360w, //cdn.shopify.com/s/files/1/0565/4138/0791/files/storm-snow_540x.jpg?v=1619177881 540w, //cdn.shopify.com/s/files/1/0565/4138/0791/files/storm-snow_720x.jpg?v=1619177881 720w, //cdn.shopify.com/s/files/1/0565/4138/0791/files/storm-snow_900x.jpg?v=1619177881 900w, //cdn.shopify.com/s/files/1/0565/4138/0791/files/storm-snow_1080x.jpg?v=1619177881 1080w"
+				sizes="500px"
+				srcset="
+					//cdn.shopify.com/s/files/1/0565/4138/0791/files/storm-snow_180x.jpg?v=1619177881   180w,
+					//cdn.shopify.com/s/files/1/0565/4138/0791/files/storm-snow_360x.jpg?v=1619177881   360w,
+					//cdn.shopify.com/s/files/1/0565/4138/0791/files/storm-snow_540x.jpg?v=1619177881   540w,
+					//cdn.shopify.com/s/files/1/0565/4138/0791/files/storm-snow_720x.jpg?v=1619177881   720w,
+					//cdn.shopify.com/s/files/1/0565/4138/0791/files/storm-snow_900x.jpg?v=1619177881   900w,
+					//cdn.shopify.com/s/files/1/0565/4138/0791/files/storm-snow_1080x.jpg?v=1619177881 1080w
+				"
+			/>
+			<!-- <img
+				src="https://images.unsplash.com/photo-1658194171243-10f8f502b775?crop=entropy&cs=tinysrgb&fit=crop&fm=jpg&h=400&ixid=MnwxfDB8MXxyYW5kb218MHx8fHx8fHx8MTY1ODU4MDUxOQ&ixlib=rb-1.2.1&q=80&w=400"
 				width="300"
 				height="300"
 				alt=""
-			/>
+			/> -->
 		</div>
-		<div>
+		<!-- <div>
 			<h2>picture element</h2>
 			<picture>
 				<source
@@ -73,8 +90,12 @@
 		<div class="bg-sample-container">
 			<h2>Background</h2>
 			<div></div>
-		</div>
+		</div> -->
 		<button onclick="measure()">Test</button>
+
+		<script>
+			window.noAutoRun = true
+		</script>
 		<script src="../main.js"></script>
 	</body>
 </html>
