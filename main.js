@@ -123,7 +123,7 @@ async function getSrcSize(src) {
 async function processImg(img) {
 	if (window.imagesCompleted.has(img)) return
 	const canvas = createCanvas(img.width, img.height)
-	canvas.getContext('2d').drawImage(img, 0, 0)
+	canvas.getContext('2d').drawImage(img, 0, 0, img.width, img.height)
 	const size = await getSrcSize(img.currentSrc)
 	const text = `${img.naturalWidth} x ${img.naturalHeight} (${size} kb)`
 	addTextBgToCanvas(canvas)
@@ -152,19 +152,48 @@ function processImgOnLoad(img) {
 
 /**
  * Measures and processes all img elements on the page.
+ * Valid images are (removed: at least 200 x 200 and) not
+ * belonging to a `<picture>` element.
  */
 async function measureImgElements() {
 	const allImages = document.querySelectorAll('img')
-	const largeEnoughImages = Array.from(allImages).filter(
-		(img) => img.naturalWidth > 200 && img.naturalHeight > 200
+	const filteredImages = Array.from(allImages).filter(
+		(img) =>
+			// img.naturalWidth > 200 &&
+			// img.naturalHeight > 200 &&
+			img.parentElement?.tagName?.toLowerCase() !== 'PICTURE'
 	)
-	for (const img of largeEnoughImages) {
+	for (const img of filteredImages) {
 		img.loading = 'eager'
 		img.crossOrigin = 'anonymous'
 		if (img.naturalWidth) {
 			await processImg(img)
 		} else {
 			await processImgOnLoad(img)
+		}
+	}
+}
+
+/**
+ * Measures and processes all picture elements.
+ * Removes the other sources and the img element remains.
+ */
+async function measurePictureElements() {
+	const allPictures = document.querySelectorAll('picture')
+	const pictureImgEls = Array.from(allPictures).map((picture) =>
+		picture.querySelector('img')
+	)
+	for (const img of pictureImgEls) {
+		if (!img) continue
+		img.loading = 'eager'
+		img.crossOrigin = 'anonymous'
+		if (img.naturalWidth) {
+			await processImg(img)
+		} else {
+			await processImgOnLoad(img)
+		}
+		for (const source of img.parentElement.children) {
+			source.remove()
 		}
 	}
 }
@@ -236,10 +265,11 @@ async function measureBgElements() {
 	}
 }
 
-// measureAllImages()
+measureAllImages()
 async function measureAllImages() {
-	const interval = log('Measuring imgs', true)
+	const interval = log('Measuring', true)
 	await measureImgElements()
+	await measurePictureElements()
 	await measureBgElements()
 	log('Finished', false, interval)
 }
