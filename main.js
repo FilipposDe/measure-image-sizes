@@ -1,5 +1,5 @@
-window.imagesMeasured = new Set()
-window.bgsMeasured = new Set()
+window.imagesCompleted = new Set()
+window.bgsCompleted = new Set()
 
 /**
  * Logs a message on the top right corner of the screen.
@@ -24,13 +24,15 @@ function log(text, loading, pastInterval) {
                     color: #fff;
                     background-color: #035270;
                     padding: 10px;
-                    width: 100px;
+                    width: 160px;
                     height: 30px;
                     min-height: 30px;
                     line-height: 30px;
                     position: fixed;
                     top: 5px;
                     right: 5px;
+                    box-sizing: content-box;
+                    z-index: 999999;
                 }
             </style>
             <span></span>
@@ -93,12 +95,14 @@ function addTextToCanvas(canvas, text) {
 	ctx.fillText(text, canvas.width / 2, canvas.height / 2)
 }
 
-function replaceImgOnLoad(img) {
-	return new Promise((resolve) => {
-		img.addEventListener('load', () => {
-			replaceImg(img).then(() => resolve())
-		})
-	})
+/**
+ * Removes the image src and replaces it with the canvas Data URL.
+ * @param {HTMLElement} img the image to set the new src
+ * @param {HTMLElement} canvas the canvas that will be the new src
+ */
+function replaceImgCanvas(img, canvas) {
+	img.src = canvas.toDataURL()
+	img.srcset = ''
 }
 
 /**
@@ -112,19 +116,43 @@ async function getSrcSize(src) {
 	return Math.floor(blob.size / 1024)
 }
 
-async function replaceImg(img) {
-	if (window.imagesMeasured.has(img)) return
+/**
+ * Processes an image by measuring it and adding a label to it.
+ * @param {HTMLElement} img the image to process
+ */
+async function processImg(img) {
+	if (window.imagesCompleted.has(img)) return
 	const canvas = createCanvas(img.width, img.height)
 	canvas.getContext('2d').drawImage(img, 0, 0)
 	const size = await getSrcSize(img.currentSrc)
 	const text = `${img.naturalWidth} x ${img.naturalHeight} (${size} kb)`
 	addTextBgToCanvas(canvas)
 	addTextToCanvas(canvas, text)
-	img.src = canvas.toDataURL()
-	img.srcset = ''
-	window.imagesMeasured.add(img)
+	replaceImgCanvas(img, canvas)
+	window.imagesCompleted.add(img)
 }
 
+/**
+ * Replaces image with the image generated from the
+ * new canvas, including the measurement label.
+ * @param {HTMLElement} img the image to replace
+ * @returns {Promise<undefined>}
+ */
+function processImgOnLoad(img) {
+	if (window.imagesCompleted.has(img)) return
+	return new Promise((resolve) => {
+		img.addEventListener('load', () => {
+			processImg(img).then(() => {
+				window.imagesCompleted.add(img)
+				return resolve()
+			})
+		})
+	})
+}
+
+/**
+ * Measures and processes all img elements on the page.
+ */
 async function measureImgElements() {
 	const allImages = document.querySelectorAll('img')
 	const largeEnoughImages = Array.from(allImages).filter(
@@ -134,75 +162,86 @@ async function measureImgElements() {
 		img.loading = 'eager'
 		img.crossOrigin = 'anonymous'
 		if (img.naturalWidth) {
-			await replaceImg(img)
+			await processImg(img)
 		} else {
-			await replaceImgOnLoad(img)
+			await processImgOnLoad(img)
 		}
 	}
 }
 
-// const loadImage = (src) =>
-// 	new Promise((resolve, reject) => {
-// 		const image = new Image()
-// 		image.onload = () => {
-// 			resolve(image)
-// 		}
-// 		image.src = src
-// 	})
+/**
+ * Creates an Image from an src
+ * @param {String} src the src of the image
+ * @returns {Promise<Image>} the image
+ */
+const loadImage = (src) =>
+	new Promise((resolve, reject) => {
+		const image = new Image()
+		image.onload = () => {
+			resolve(image)
+		}
+		image.src = src
+	})
 
-// async function measureBg(el) {
-// 	if (window.bgsMeasured.has(el)) return
-// 	const src = el.style.background || el.style.backgroundImage
-// 	const image = await loadImage(src.slice(4, -1).replace(/"/g, ''))
-// 	const canvas = document.createElement('canvas')
-// 	const ctx = canvas.getContext('2d')
-// 	canvas.width = 150
-// 	canvas.height = 100
-// 	ctx.fillStyle = 'red'
-// 	ctx.fillRect(canvas.width / 2 - 75, canvas.height / 2 - 50, 150, 100)
-// 	const res = await fetch(image.src)
-// 	const blob = await res.blob()
-// 	const text =
-// 		image.naturalWidth +
-// 		' x ' +
-// 		image.naturalHeight +
-// 		' (' +
-// 		Math.floor(blob.size / 1024) +
-// 		'kb)'
-// 	ctx.fillStyle = 'white'
-// 	ctx.font = '12px Arial'
-// 	ctx.textAlign = 'center'
-// 	ctx.textBaseline = 'middle'
-// 	ctx.fillText(text, canvas.width / 2, canvas.height / 2)
-// 	const newSrc = canvas.toDataURL()
-// 	el.style.background = `no-repeat center/150px url(${newSrc}), ${src}`
-// 	console.log(src)
-// 	window.bgsMeasured.add(el)
-// }
+/**
+ * Adds an extra url on the background property with
+ * the label contents.
+ * @param {HTMLElement} el the element with the background
+ * @param {HTMLElement} canvas the canvas with the label
+ */
+function addCanvasLabelToElBg(el, canvas, prevBg) {
+	const newSrc = canvas.toDataURL()
+	el.style.background = `no-repeat center/150px url(${newSrc}), ${prevBg}`
+}
 
-// function hasBg(el) {
-// 	return (
-// 		(el.style.background.startsWith('url') &&
-// 			/jpg|png/.test(el.style.background)) ||
-// 		(el.style.backgroundImage.startsWith('url') &&
-// 			/jpg|png/.test(el.style.backgroundImage))
-// 	)
-// }
+/**
+ * Processes a background by measuring it and adding a label to it.
+ * @param {HTMLElement} el the element with the background
+ */
+async function processElBg(el) {
+	if (window.bgsCompleted.has(el)) return
+	const style = el.currentStyle || window.getComputedStyle(el, false)
+	const src = style.backgroundImage.slice(4, -1).replace(/"/g, '')
+	const image = await loadImage(src)
+	const canvas = createCanvas(150, 100)
+	const size = await getSrcSize(image.currentSrc)
+	const text = `${image.naturalWidth} x ${image.naturalHeight} (${size} kb)`
+	addTextBgToCanvas(canvas)
+	addTextToCanvas(canvas, text)
+	addCanvasLabelToElBg(el, canvas, style.backgroundImage)
+	window.bgsCompleted.add(el)
+}
 
-// async function initBg() {
-// 	const allElements = document.querySelectorAll('*')
-// 	const elementsWithBg = Array.from(allElements).filter(hasBg)
-// 	for (const el of elementsWithBg) {
-// 		measureBg(el)
-// 	}
-// }
+/**
+ * Checks whether the element has a background image.
+ * @param {HTMLElement} el
+ * @returns {Boolean}
+ */
+function hasBg(el) {
+	const style = el.currentStyle || window.getComputedStyle(el, false)
+	return (
+		style.backgroundImage.startsWith('url') &&
+		/jpg|png/.test(style.backgroundImage)
+	)
+}
+
+/**
+ * Measures and processes all background images.
+ */
+async function measureBgElements() {
+	const allElements = document.querySelectorAll('*')
+	const elementsWithBg = Array.from(allElements).filter(hasBg)
+	for (const el of elementsWithBg) {
+		await processElBg(el)
+	}
+}
 
 // measureAllImages()
 async function measureAllImages() {
-	const interval = log('Measuring', true)
+	const interval = log('Measuring imgs', true)
 	await measureImgElements()
+	await measureBgElements()
 	log('Finished', false, interval)
-	// measureBgElements()
 }
 
 async function measure() {
