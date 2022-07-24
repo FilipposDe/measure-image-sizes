@@ -1,5 +1,5 @@
-window.imagesCompleted = new Set()
-window.bgsCompleted = new Set()
+window.imagesCompleted = window.imagesCompleted || new Set()
+window.bgsCompleted = window.imagesCompleted || new Set()
 
 /**
  * Logs a message on the top right corner of the screen.
@@ -59,6 +59,20 @@ function log(text, loading, pastInterval) {
 }
 
 /**
+ * Returns true if the element is visible.
+ * @param {HTMLElement} el
+ * @returns {Boolean}
+ */
+function isVisible(el) {
+	return (
+		el &&
+		(el.clientHeight !== 0 ||
+			el.getClientRects().length !== 0 ||
+			getComputedStyle(el).display !== 'none')
+	)
+}
+
+/**
  * Creates a canvas with the given width and height.
  * @param {Number} w width of the canvas
  * @param {Number} h height of the canvas
@@ -111,9 +125,13 @@ function replaceImgCanvas(img, canvas) {
  * @returns {Number} the size of the image in kb
  */
 async function getSrcSize(src) {
-	const res = await fetch(src)
-	const blob = await res.blob()
-	return Math.floor(blob.size / 1024)
+	const res = await fetch(src, {
+		headers: {
+			accept: 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+		},
+	})
+	const size = res.headers.get('content-length')
+	return Math.floor(size / 1024)
 }
 
 /**
@@ -187,6 +205,8 @@ async function measureImgElements() {
 	const allImages = document.querySelectorAll('img')
 	const filteredImages = Array.from(allImages).filter(
 		(img) =>
+			isVisible(img) &&
+			/^http|^\//.test(img.currentSrc) &&
 			img.naturalWidth > 50 &&
 			img.naturalHeight > 50 &&
 			img.parentElement?.tagName?.toLowerCase() !== 'PICTURE'
@@ -210,9 +230,9 @@ async function measureImgElements() {
  */
 async function measurePictureElements() {
 	const allPictures = document.querySelectorAll('picture')
-	const pictureImgEls = Array.from(allPictures).map((picture) =>
-		picture.querySelector('img')
-	)
+	const pictureImgEls = Array.from(allPictures)
+		.filter(isVisible)
+		.map((picture) => picture.querySelector('img'))
 	for (const img of pictureImgEls) {
 		if (!img) continue
 		img.loading = 'eager'
@@ -265,7 +285,7 @@ function addCanvasLabelToElBg(el, canvas, prevBg) {
  */
 async function processElBg(el) {
 	if (window.bgsCompleted.has(el)) return
-	const style = el.currentStyle || window.getComputedStyle(el, false)
+	const style = window.getComputedStyle(el, false)
 	const src = style.backgroundImage.slice(4, -1).replace(/"/g, '')
 	const image = await loadImage(src)
 	const canvas = createCanvas(150, 100)
@@ -273,7 +293,7 @@ async function processElBg(el) {
 	const text = `${image.naturalWidth} x ${image.naturalHeight} (${size} kb)`
 	addTextBgToCanvas(canvas)
 	addTextToCanvas(canvas, text)
-	addCanvasLabelToElBg(el, canvas, style.backgroundImage)
+	addCanvasLabelToElBg(el, canvas, style.background)
 	window.bgsCompleted.add(el)
 }
 
@@ -283,7 +303,7 @@ async function processElBg(el) {
  * @returns {Boolean}
  */
 function hasBg(el) {
-	const style = el.currentStyle || window.getComputedStyle(el, false)
+	const style = window.getComputedStyle(el, false)
 	return (
 		style.backgroundImage.startsWith('url') &&
 		/jpg|png/.test(style.backgroundImage)
@@ -295,7 +315,9 @@ function hasBg(el) {
  */
 async function measureBgElements() {
 	const allElements = document.querySelectorAll('*')
-	const elementsWithBg = Array.from(allElements).filter(hasBg)
+	const elementsWithBg = Array.from(allElements).filter(
+		(el) => hasBg(el) && isVisible(el)
+	)
 	for (const el of elementsWithBg) {
 		await processElBg(el)
 	}
