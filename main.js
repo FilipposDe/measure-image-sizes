@@ -209,7 +209,7 @@ async function measureImgElements() {
 			/^http|^\//.test(img.currentSrc) &&
 			img.naturalWidth > 50 &&
 			img.naturalHeight > 50 &&
-			img.parentElement?.tagName?.toLowerCase() !== 'PICTURE'
+			img.parentElement?.tagName?.toLowerCase() !== 'picture'
 	)
 	for (const img of filteredImages) {
 		// if (window.imagesCompleted.has(img)) continue
@@ -323,9 +323,6 @@ async function measureBgElements() {
 	}
 }
 
-if (!window.noAutoRun) {
-	measureAllImages()
-}
 async function measureAllImages() {
 	const interval = log('Measuring', true)
 	await measureImgElements()
@@ -342,4 +339,8 @@ async function measure() {
 			measureAllImages()
 		})
 	}
+}
+
+if (!window.noAutoRun) {
+	measure()
 }
